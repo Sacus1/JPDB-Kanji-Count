@@ -25,7 +25,7 @@ A Tampermonkey userscript that enhances the [JPDB.io](https://jpdb.io) "Wall of 
    - [Safari](https://apps.apple.com/app/tampermonkey/id1482490089)
 
 2. Click on this link to install the script (or copy the script content and create a new script in Tampermonkey):
-   - (Add direct installation link if available)
+   - [Greasyfork](https://greasyfork.org/en/scripts/537654-kanji-counter)
 
 3. Alternatively, you can manually install by:
    - Opening Tampermonkey dashboard
