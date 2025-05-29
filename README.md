@@ -2,6 +2,8 @@
 
 A Tampermonkey userscript that enhances the [JPDB.io](https://jpdb.io) "Wall of Kanji" page by displaying statistics about your known kanji, categorized by Japanese school grade levels.
 
+The Jōyō kanji list and grade level information is sourced from [Wikipedia's List of jōyō kanji](https://en.wikipedia.org/wiki/List_of_j%C5%8Dy%C5%8D_kanji).
+
 ## Features
 
 - Counts known kanji by grade level (1st through 6th grade, plus secondary school)
