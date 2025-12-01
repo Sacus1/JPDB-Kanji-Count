@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kanji Counter
 // @namespace    http://tampermonkey.net/
-// @version      1.0.0
+// @version      2.0.0
 // @description  Displays statistics of known kanji on JPDB's wall of kanji page
 // @author       Sacus
 // @match        https://jpdb.io/labs/wall-of-kanji
