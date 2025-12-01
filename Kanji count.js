@@ -103,62 +103,138 @@
 	// Format percentage with one decimal place
 	const formatPercentage = (ratio) => (ratio * 100).toFixed(1);
 
-	// Function to create table HTML
-	const createTableHTML = (viewMode) => {
+	// Grade level display names
+	const gradeNames = {
+		"1": "First grade",
+		"2": "Second grade",
+		"3": "Third grade",
+		"4": "Fourth grade",
+		"5": "Fifth grade",
+		"6": "Sixth grade",
+		"S": "Secondary school",
+		[NOT_JOUYOU]: "Non-Jouyou"
+	};
+
+	// Get the wall of kanji container and store original kanji elements
+	const wallOfKanjiContainer = document.querySelector('.wall-of-kanji');
+	const allKanjiElements = Array.from(wallOfKanjiContainer.children);
+
+	// Map to store kanji elements by grade level
+	const kanjiByGrade = Object.fromEntries([...GRADE_LEVELS, NOT_JOUYOU].map(level => [level, []]));
+
+	// Categorize each kanji element by grade level
+	allKanjiElements.forEach(element => {
+		const kanji = element.firstChild?.textContent?.trim();
+		if (kanji) {
+			const level = jouyou[kanji] || NOT_JOUYOU;
+			kanjiByGrade[level].push(element);
+		}
+	});
+
+	// Track expanded state for each grade level in separate mode
+	const expandedGrades = {};
+
+	// Function to create table with expandable rows for separate mode
+	const createTableWithFolders = (tableContainerElement, viewMode) => {
 		const data = viewMode === VIEW_MODES.CUMULATIVE ? 
 			{ counts: cumulativeLearnedCount, ratios: cumulativeCompletionRatio } : 
 			{ counts: learnedCount, ratios: completionRatio };
 
-		const gradeNames = {
-			"1": "First grade",
-			"2": "Second grade",
-			"3": "Third grade",
-			"4": "Fourth grade",
-			"5": "Fifth grade",
-			"6": "Sixth grade",
-			"S": "Secondary school"
-		};
+		const table = document.createElement('table');
+		table.style.cssText = 'width: 100%; border-collapse: collapse; margin-bottom: 10px;';
 
-		let tableHTML = `
-			<table style="width: 100%; border-collapse: collapse; margin-bottom: 10px;">
-				<thead>
-					<tr>
-						<th style="text-align: left; padding: 8px; border-bottom: 1px solid #ddd;">Grade</th>
-						<th style="text-align: right; padding: 8px; border-bottom: 1px solid #ddd;">Count</th>
-						<th style="text-align: right; padding: 8px; border-bottom: 1px solid #ddd;">Percentage</th>
-					</tr>
-				</thead>
-				<tbody>
+		// Create header
+		const thead = document.createElement('thead');
+		thead.innerHTML = `
+			<tr>
+				<th style="text-align: left; padding: 8px; border-bottom: 1px solid #ddd;">Grade</th>
+				<th style="text-align: right; padding: 8px; border-bottom: 1px solid #ddd;">Count</th>
+				<th style="text-align: right; padding: 8px; border-bottom: 1px solid #ddd;">Percentage</th>
+			</tr>
 		`;
+		table.appendChild(thead);
+
+		const tbody = document.createElement('tbody');
 
 		// Add rows for each grade level
-		GRADE_LEVELS.forEach(grade => {
-			tableHTML += `
-				<tr>
-					<td style="text-align: left; padding: 8px; border-bottom: 1px solid #ddd;">${gradeNames[grade]}</td>
-					<td style="text-align: right; padding: 8px; border-bottom: 1px solid #ddd;">${data.counts[grade]}</td>
-					<td style="text-align: right; padding: 8px; border-bottom: 1px solid #ddd;">${formatPercentage(data.ratios[grade])}%</td>
-				</tr>
+		[...GRADE_LEVELS, NOT_JOUYOU].forEach(grade => {
+			// Skip Non-Jouyou if count is 0
+			if (grade === NOT_JOUYOU && data.counts[grade] === 0) return;
+
+			const row = document.createElement('tr');
+			row.dataset.grade = grade;
+
+			// In separate mode, make rows clickable (except Total Jouyou)
+			if (viewMode === VIEW_MODES.SEPARATE) {
+				row.style.cursor = 'pointer';
+				row.style.userSelect = 'none';
+			}
+
+			const isExpanded = expandedGrades[grade] || false;
+			const arrow = viewMode === VIEW_MODES.SEPARATE ? (isExpanded ? '▼ ' : '▶ ') : '';
+
+			row.innerHTML = `
+				<td style="text-align: left; padding: 8px; border-bottom: 1px solid #ddd;">${arrow}${gradeNames[grade]}</td>
+				<td style="text-align: right; padding: 8px; border-bottom: 1px solid #ddd;">${data.counts[grade]}</td>
+				<td style="text-align: right; padding: 8px; border-bottom: 1px solid #ddd;">${grade === NOT_JOUYOU ? '-' : formatPercentage(data.ratios[grade]) + '%'}</td>
 			`;
+
+			tbody.appendChild(row);
+
+			// In separate mode, add click handler and kanji row if expanded
+			if (viewMode === VIEW_MODES.SEPARATE) {
+				row.addEventListener('click', () => {
+					expandedGrades[grade] = !expandedGrades[grade];
+					updateDisplay();
+				});
+
+				// Add hover effect
+				row.addEventListener('mouseenter', () => {
+					row.style.backgroundColor = '#f5f5f5';
+				});
+				row.addEventListener('mouseleave', () => {
+					row.style.backgroundColor = '';
+				});
+
+				// If expanded, add a row with the kanji
+				if (isExpanded && kanjiByGrade[grade].length > 0) {
+					const kanjiRow = document.createElement('tr');
+					kanjiRow.dataset.kanjiRow = grade;
+					const kanjiCell = document.createElement('td');
+					kanjiCell.colSpan = 3;
+					kanjiCell.style.cssText = 'padding: 10px; border-bottom: 1px solid #ddd; background-color: #fafafa;';
+
+					// Create a container for the kanji elements
+					const kanjiContainer = document.createElement('div');
+					kanjiContainer.style.cssText = 'display: flex; flex-wrap: wrap; gap: 5px;';
+
+					// Clone kanji elements to display in the table
+					kanjiByGrade[grade].forEach(element => {
+						const clone = element.cloneNode(true);
+						kanjiContainer.appendChild(clone);
+					});
+
+					kanjiCell.appendChild(kanjiContainer);
+					kanjiRow.appendChild(kanjiCell);
+					tbody.appendChild(kanjiRow);
+				}
+			}
 		});
 
-		// Add total row
-		tableHTML += `
-				<tr style="font-weight: bold;">
-					<td style="text-align: left; padding: 8px; border-bottom: 1px solid #ddd;">Total Jouyou</td>
-					<td style="text-align: right; padding: 8px; border-bottom: 1px solid #ddd;">${learnedKanji.length - learnedCount[NOT_JOUYOU]}</td>
-					<td style="text-align: right; padding: 8px; border-bottom: 1px solid #ddd;">${formatPercentage(completionRatio.Total)}%</td>
-				</tr>
-				<tr>
-					<td style="text-align: left; padding: 8px; border-bottom: 1px solid #ddd;">Non-Jouyou</td>
-					<td style="text-align: right; padding: 8px; border-bottom: 1px solid #ddd;">${learnedCount[NOT_JOUYOU]}</td>
-					<td style="text-align: right; padding: 8px; border-bottom: 1px solid #ddd;">-</td>
-				</tr>
-			</tbody>
-		</table>
+		// Add total row (only for grade levels, not Non-Jouyou)
+		const totalRow = document.createElement('tr');
+		totalRow.style.fontWeight = 'bold';
+		totalRow.innerHTML = `
+			<td style="text-align: left; padding: 8px; border-bottom: 1px solid #ddd;">Total Jouyou</td>
+			<td style="text-align: right; padding: 8px; border-bottom: 1px solid #ddd;">${learnedKanji.length - learnedCount[NOT_JOUYOU]}</td>
+			<td style="text-align: right; padding: 8px; border-bottom: 1px solid #ddd;">${formatPercentage(completionRatio.Total)}%</td>
 		`;
+		tbody.appendChild(totalRow);
 
-		return tableHTML;
+		table.appendChild(tbody);
+
+		// Clear container and add table
+		tableContainerElement.replaceChildren(table);
 	};
 
 	// Create tab-like view mode toggle
@@ -213,12 +289,10 @@
 	};
 
 	// Function to update the display based on the current view mode
-	// onAfterUpdate callback is called after the display is updated (used for folder view toggle)
-	let onAfterDisplayUpdate = null;
 	const updateDisplay = () => {
 		// Update the table content
-		const tableContainer = statsDisplay.querySelector('.table-container');
-		tableContainer.innerHTML = createTableHTML(currentViewMode);
+		const tableContainerElement = statsDisplay.querySelector('.table-container');
+		createTableWithFolders(tableContainerElement, currentViewMode);
 
 		// Update tab styles
 		const tabs = statsDisplay.querySelectorAll('div > div');
@@ -239,11 +313,6 @@
 				tab.style.fontWeight = 'normal';
 			}
 		});
-
-		// Call the after-update callback if set
-		if (onAfterDisplayUpdate) {
-			onAfterDisplayUpdate();
-		}
 	};
 
 	// Build the HTML content
@@ -269,145 +338,5 @@
 
 	// Insert the stats display after the header
 	headerElement.insertAdjacentElement('afterend', statsDisplay);
-
-	// Get the wall of kanji container
-	const wallOfKanjiContainer = document.querySelector('.wall-of-kanji');
-
-	// Store original kanji elements and their order
-	const allKanjiElements = Array.from(wallOfKanjiContainer.children);
-	const originalParent = wallOfKanjiContainer;
-
-	// Map to store kanji elements by grade level
-	const kanjiByGrade = Object.fromEntries([...GRADE_LEVELS, NOT_JOUYOU].map(level => [level, []]));
-
-	// Categorize each kanji element by grade level
-	allKanjiElements.forEach(element => {
-		const kanji = element.firstChild?.textContent?.trim();
-		if (kanji) {
-			const level = jouyou[kanji] || NOT_JOUYOU;
-			kanjiByGrade[level].push(element);
-		}
-	});
-
-	// Grade level display names
-	const gradeNames = {
-		"1": "First grade",
-		"2": "Second grade",
-		"3": "Third grade",
-		"4": "Fourth grade",
-		"5": "Fifth grade",
-		"6": "Sixth grade",
-		"S": "Secondary school",
-		[NOT_JOUYOU]: "Non-Jouyou"
-	};
-
-	// Create folder containers for each grade level
-	const folderContainers = {};
-	const folderHeaders = {};
-
-	// Create folders for each grade level
-	[...GRADE_LEVELS, NOT_JOUYOU].forEach(level => {
-		// Create folder container
-		const folderContainer = document.createElement('div');
-		folderContainer.className = `kanji-folder kanji-folder-${level}`;
-		folderContainer.style.marginBottom = '10px';
-
-		// Create folder header (clickable to expand/collapse)
-		const folderHeader = document.createElement('div');
-		folderHeader.className = 'folder-header';
-		folderHeader.style.cursor = 'pointer';
-		folderHeader.style.padding = '10px';
-		folderHeader.style.backgroundColor = '#f0f0f0';
-		folderHeader.style.borderRadius = '5px';
-		folderHeader.style.display = 'flex';
-		folderHeader.style.alignItems = 'center';
-		folderHeader.style.userSelect = 'none';
-
-		// Arrow indicator
-		const arrow = document.createElement('span');
-		arrow.className = 'folder-arrow';
-		arrow.textContent = '▶';
-		arrow.style.marginRight = '10px';
-		arrow.style.transition = 'transform 0.2s';
-
-		// Folder title with count
-		const title = document.createElement('span');
-		title.textContent = `${gradeNames[level]} (${kanjiByGrade[level].length} kanji)`;
-
-		folderHeader.appendChild(arrow);
-		folderHeader.appendChild(title);
-
-		// Create content container for kanji
-		const contentContainer = document.createElement('div');
-		contentContainer.className = 'folder-content';
-		contentContainer.style.display = 'none'; // Initially collapsed
-		contentContainer.style.padding = '10px';
-		contentContainer.style.flexWrap = 'wrap';
-		contentContainer.style.gap = '5px';
-
-		// Add click handler to toggle folder
-		folderHeader.addEventListener('click', () => {
-			const isExpanded = contentContainer.style.display !== 'none';
-			contentContainer.style.display = isExpanded ? 'none' : 'flex';
-			arrow.style.transform = isExpanded ? 'rotate(0deg)' : 'rotate(90deg)';
-		});
-
-		folderContainer.appendChild(folderHeader);
-		folderContainer.appendChild(contentContainer);
-
-		folderContainers[level] = folderContainer;
-		folderHeaders[level] = { header: folderHeader, content: contentContainer, arrow: arrow };
-	});
-
-	// Track if folder view is active
-	let folderViewActive = false;
-
-	// Function to activate folder view (non-cumulative/separate mode)
-	const activateFolderView = () => {
-		if (folderViewActive) return;
-		folderViewActive = true;
-
-		// Clear the wall of kanji container
-		originalParent.replaceChildren();
-
-		// Add folder containers and move kanji elements into them
-		[...GRADE_LEVELS, NOT_JOUYOU].forEach(level => {
-			const contentContainer = folderHeaders[level].content;
-
-			// Clear existing content and add kanji elements
-			contentContainer.replaceChildren(...kanjiByGrade[level]);
-
-			// Only add folder if it has kanji
-			if (kanjiByGrade[level].length > 0) {
-				originalParent.appendChild(folderContainers[level]);
-			}
-		});
-	};
-
-	// Function to deactivate folder view (cumulative mode - restore original)
-	const deactivateFolderView = () => {
-		if (!folderViewActive) return;
-		folderViewActive = false;
-
-		// Clear and restore all kanji elements to original parent
-		originalParent.replaceChildren(...allKanjiElements);
-	};
-
-	// Function to toggle folder view based on current mode
-	const toggleFolderView = () => {
-		if (currentViewMode === VIEW_MODES.SEPARATE) {
-			activateFolderView();
-		} else {
-			deactivateFolderView();
-		}
-	};
-
-	// Set the callback to toggle folder view after display updates
-	onAfterDisplayUpdate = toggleFolderView;
-
-	// Activate folder view for initial separate mode
-	if (currentViewMode === VIEW_MODES.SEPARATE) {
-		activateFolderView();
-	}
 
 })();
