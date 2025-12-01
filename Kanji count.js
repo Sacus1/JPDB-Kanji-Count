@@ -213,6 +213,8 @@
 	};
 
 	// Function to update the display based on the current view mode
+	// onAfterUpdate callback is called after the display is updated (used for folder view toggle)
+	let onAfterDisplayUpdate = null;
 	const updateDisplay = () => {
 		// Update the table content
 		const tableContainer = statsDisplay.querySelector('.table-container');
@@ -237,6 +239,11 @@
 				tab.style.fontWeight = 'normal';
 			}
 		});
+
+		// Call the after-update callback if set
+		if (onAfterDisplayUpdate) {
+			onAfterDisplayUpdate();
+		}
 	};
 
 	// Build the HTML content
@@ -262,5 +269,145 @@
 
 	// Insert the stats display after the header
 	headerElement.insertAdjacentElement('afterend', statsDisplay);
+
+	// Get the wall of kanji container
+	const wallOfKanjiContainer = document.querySelector('.wall-of-kanji');
+
+	// Store original kanji elements and their order
+	const allKanjiElements = Array.from(wallOfKanjiContainer.children);
+	const originalParent = wallOfKanjiContainer;
+
+	// Map to store kanji elements by grade level
+	const kanjiByGrade = Object.fromEntries([...GRADE_LEVELS, NOT_JOUYOU].map(level => [level, []]));
+
+	// Categorize each kanji element by grade level
+	allKanjiElements.forEach(element => {
+		const kanji = element.firstChild?.textContent?.trim();
+		if (kanji) {
+			const level = jouyou[kanji] || NOT_JOUYOU;
+			kanjiByGrade[level].push(element);
+		}
+	});
+
+	// Grade level display names
+	const gradeNames = {
+		"1": "First grade",
+		"2": "Second grade",
+		"3": "Third grade",
+		"4": "Fourth grade",
+		"5": "Fifth grade",
+		"6": "Sixth grade",
+		"S": "Secondary school",
+		[NOT_JOUYOU]: "Non-Jouyou"
+	};
+
+	// Create folder containers for each grade level
+	const folderContainers = {};
+	const folderHeaders = {};
+
+	// Create folders for each grade level
+	[...GRADE_LEVELS, NOT_JOUYOU].forEach(level => {
+		// Create folder container
+		const folderContainer = document.createElement('div');
+		folderContainer.className = `kanji-folder kanji-folder-${level}`;
+		folderContainer.style.marginBottom = '10px';
+
+		// Create folder header (clickable to expand/collapse)
+		const folderHeader = document.createElement('div');
+		folderHeader.className = 'folder-header';
+		folderHeader.style.cursor = 'pointer';
+		folderHeader.style.padding = '10px';
+		folderHeader.style.backgroundColor = '#f0f0f0';
+		folderHeader.style.borderRadius = '5px';
+		folderHeader.style.display = 'flex';
+		folderHeader.style.alignItems = 'center';
+		folderHeader.style.userSelect = 'none';
+
+		// Arrow indicator
+		const arrow = document.createElement('span');
+		arrow.className = 'folder-arrow';
+		arrow.textContent = '▶';
+		arrow.style.marginRight = '10px';
+		arrow.style.transition = 'transform 0.2s';
+
+		// Folder title with count
+		const title = document.createElement('span');
+		title.textContent = `${gradeNames[level]} (${kanjiByGrade[level].length} kanji)`;
+
+		folderHeader.appendChild(arrow);
+		folderHeader.appendChild(title);
+
+		// Create content container for kanji
+		const contentContainer = document.createElement('div');
+		contentContainer.className = 'folder-content';
+		contentContainer.style.display = 'none'; // Initially collapsed
+		contentContainer.style.padding = '10px';
+		contentContainer.style.flexWrap = 'wrap';
+		contentContainer.style.gap = '5px';
+
+		// Add click handler to toggle folder
+		folderHeader.addEventListener('click', () => {
+			const isExpanded = contentContainer.style.display !== 'none';
+			contentContainer.style.display = isExpanded ? 'none' : 'flex';
+			arrow.style.transform = isExpanded ? 'rotate(0deg)' : 'rotate(90deg)';
+		});
+
+		folderContainer.appendChild(folderHeader);
+		folderContainer.appendChild(contentContainer);
+
+		folderContainers[level] = folderContainer;
+		folderHeaders[level] = { header: folderHeader, content: contentContainer, arrow: arrow };
+	});
+
+	// Track if folder view is active
+	let folderViewActive = false;
+
+	// Function to activate folder view (non-cumulative/separate mode)
+	const activateFolderView = () => {
+		if (folderViewActive) return;
+		folderViewActive = true;
+
+		// Clear the wall of kanji container
+		originalParent.replaceChildren();
+
+		// Add folder containers and move kanji elements into them
+		[...GRADE_LEVELS, NOT_JOUYOU].forEach(level => {
+			const contentContainer = folderHeaders[level].content;
+
+			// Clear existing content and add kanji elements
+			contentContainer.replaceChildren(...kanjiByGrade[level]);
+
+			// Only add folder if it has kanji
+			if (kanjiByGrade[level].length > 0) {
+				originalParent.appendChild(folderContainers[level]);
+			}
+		});
+	};
+
+	// Function to deactivate folder view (cumulative mode - restore original)
+	const deactivateFolderView = () => {
+		if (!folderViewActive) return;
+		folderViewActive = false;
+
+		// Clear and restore all kanji elements to original parent
+		originalParent.replaceChildren(...allKanjiElements);
+	};
+
+	// Function to toggle folder view based on current mode
+	const toggleFolderView = () => {
+		if (currentViewMode === VIEW_MODES.SEPARATE) {
+			activateFolderView();
+		} else {
+			deactivateFolderView();
+		}
+	};
+
+	// Set the callback to toggle folder view after display updates
+	onAfterDisplayUpdate = toggleFolderView;
+
+	// Activate folder view for initial separate mode
+	if (currentViewMode === VIEW_MODES.SEPARATE) {
+		activateFolderView();
+	}
 
 })();
