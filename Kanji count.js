@@ -188,13 +188,7 @@
 					updateDisplay();
 				});
 
-				// Add hover effect
-				row.addEventListener('mouseenter', () => {
-					row.style.backgroundColor = '#f5f5f5';
-				});
-				row.addEventListener('mouseleave', () => {
-					row.style.backgroundColor = '';
-				});
+
 
 				// If expanded, add a row with the kanji
 				if (isExpanded && kanjiByGrade[grade].length > 0) {
@@ -202,7 +196,7 @@
 					kanjiRow.dataset.kanjiRow = grade;
 					const kanjiCell = document.createElement('td');
 					kanjiCell.colSpan = 3;
-					kanjiCell.style.cssText = 'padding: 10px; border-bottom: 1px solid #ddd; background-color: #fafafa;';
+					kanjiCell.style.cssText = 'padding: 10px; border-bottom: 1px solid #ddd;';
 
 					// Create a container for the kanji elements
 					const kanjiContainer = document.createElement('div');
